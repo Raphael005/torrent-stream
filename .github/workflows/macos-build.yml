@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [master, main]
 
+env:
+  LIBTORRENT_DIR: Downloads/libtorrent-rasterbar-2.1.1
+
 jobs:
   build:
     runs-on: macos-latest
@@ -23,6 +26,7 @@ jobs:
           brew install boost openssl@3 cmake
 
       - name: Configure CMake
+        working-directory: ${{ env.LIBTORRENT_DIR }}
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
@@ -32,15 +36,18 @@ jobs:
             -Dpython-bindings=OFF
 
       - name: Build
+        working-directory: ${{ env.LIBTORRENT_DIR }}
         run: cmake --build build --parallel $(sysctl -n hw.ncpu)
 
       - name: Verify library
+        working-directory: ${{ env.LIBTORRENT_DIR }}
         run: |
           echo "=== Built artifacts ==="
           ls -lh build/libtorrent-rasterbar*
           file build/libtorrent-rasterbar.dylib
 
       - name: Build and run session test
+        working-directory: ${{ env.LIBTORRENT_DIR }}
         run: |
           cat > build/test_session.cpp << 'EOF'
           #include <iostream>
@@ -107,5 +114,5 @@ jobs:
         with:
           name: libtorrent-macos-${{ matrix.build_type }}
           path: |
-            build/libtorrent-rasterbar*.dylib
+            ${{ env.LIBTORRENT_DIR }}/build/libtorrent-rasterbar*.dylib
           retention-days: 7
