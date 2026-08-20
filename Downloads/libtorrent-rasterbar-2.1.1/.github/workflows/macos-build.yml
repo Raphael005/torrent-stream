@@ -1,0 +1,111 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [master, main, add-test-suite]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    strategy:
+      matrix:
+        build_type: [Release]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install boost openssl@3 cmake
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3) \
+            -Dbuild_examples=OFF \
+            -Dbuild_tests=OFF \
+            -Dpython-bindings=OFF
+
+      - name: Build
+        run: cmake --build build --parallel $(sysctl -n hw.ncpu)
+
+      - name: Verify library
+        run: |
+          echo "=== Built artifacts ==="
+          ls -lh build/libtorrent-rasterbar*
+          file build/libtorrent-rasterbar.dylib
+
+      - name: Build and run session test
+        run: |
+          cat > build/test_session.cpp << 'EOF'
+          #include <iostream>
+          #include <libtorrent/session.hpp>
+          #include <libtorrent/session_params.hpp>
+          #include <libtorrent/settings_pack.hpp>
+          #include <libtorrent/version.hpp>
+          
+          namespace lt = libtorrent;
+          
+          int main() {
+              std::cout << "libtorrent version: " << lt::version() << std::endl;
+              
+              // Test 1: Create session with settings
+              lt::settings_pack settings;
+              settings.set_str(lt::settings_pack::user_agent, "ci_test/1.0");
+              settings.set_int(lt::settings_pack::alert_mask, lt::alert_category::error);
+              
+              lt::session_params params(settings);
+              lt::session ses(std::move(params));
+              
+              // Test 2: Verify settings
+              lt::settings_pack current = ses.get_settings();
+              if (current.get_str(lt::settings_pack::user_agent) != "ci_test/1.0") {
+                  std::cerr << "FAILED: User agent mismatch" << std::endl;
+                  return 1;
+              }
+              
+              // Test 3: Pause/resume
+              ses.pause();
+              if (!ses.is_paused()) {
+                  std::cerr << "FAILED: Session should be paused" << std::endl;
+                  return 1;
+              }
+              
+              ses.resume();
+              if (ses.is_paused()) {
+                  std::cerr << "FAILED: Session should be running" << std::endl;
+                  return 1;
+              }
+              
+              // Test 4: Graceful shutdown
+              lt::session_proxy proxy = ses.abort();
+              
+              std::cout << "All tests PASSED" << std::endl;
+              return 0;
+          }
+          EOF
+          
+          clang++ -std=c++17 \
+            -DTORRENT_USE_OPENSSL=1 \
+            -I include \
+            -I $(brew --prefix)/include \
+            -L build \
+            -ltorrent-rasterbar \
+            -Wl,-rpath,build \
+            build/test_session.cpp \
+            -o build/test_session
+          
+          ./build/test_session
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libtorrent-macos-${{ matrix.build_type }}
+          path: |
+            build/libtorrent-rasterbar*.dylib
+          retention-days: 7
