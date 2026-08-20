@@ -25,6 +25,13 @@ jobs:
         run: |
           brew install boost openssl@3 cmake
 
+      - name: Download libtorrent source
+        run: |
+          mkdir -p Downloads
+          curl -L https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz -o libtorrent.tar.gz
+          tar -xzf libtorrent.tar.gz -C Downloads
+          rm libtorrent.tar.gz
+
       - name: Configure CMake
         working-directory: ${{ env.LIBTORRENT_DIR }}
         run: |
