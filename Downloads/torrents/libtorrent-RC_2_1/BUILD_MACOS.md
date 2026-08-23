@@ -1,5 +1,11 @@
 # Building libtorrent on macOS
 
+## Supported macOS Versions
+
+| OS    | Versions   | Architectures | Notes                                      |
+|-------|------------|---------------|--------------------------------------------|
+| macOS | 26, 15, 14 | Arm64, x64    | Rosetta 2 (x64 emulation) supported on Arm64 |
+
 ## Prerequisites
 
 Install dependencies via Homebrew:
