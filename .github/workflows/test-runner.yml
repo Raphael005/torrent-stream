@@ -1,0 +1,28 @@
+name: Test Self-Hosted Runner
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-runner:
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: System info
+        run: |
+          echo "Runner: $(hostname)"
+          echo "OS: $(uname -s) $(uname -m)"
+          echo "Shell: $SHELL"
+          echo "User: $(whoami)"
+
+      - name: Verify workspace
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          ls -la
+
+      - name: Run test
+        run: echo "Self-hosted runner is working!"
